@@ -1,0 +1,202 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);color:var(--color-text-primary)}
+input[type=text]{width:100%;padding:8px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);outline:none;transition:border-color .15s}
+input[type=text]:focus{border-color:var(--color-border-primary)}
+button{cursor:pointer;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);color:var(--color-text-primary);padding:9px 18px;font-size:14px;font-family:var(--font-sans);transition:background .15s,transform .1s}
+button:hover{background:var(--color-background-secondary)}
+button:active{transform:scale(0.97)}
+.mono{font-family:var(--font-mono)}
+.digit-cell{width:32px;height:36px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;font-family:var(--font-mono);background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md)}
+.dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+</style>
+
+<div id="app" style="padding:1.5rem;max-width:540px;margin:0 auto"></div>
+
+<script>
+const ALL = Array.from({length:10000},(_,i)=>i.toString().padStart(4,'0'));
+
+function hits(a,b){let n=0;for(let i=0;i<4;i++)if(a[i]===b[i])n++;return n;}
+function narrow(pool,g,n){return pool.filter(c=>hits(g,c)===n);}
+function pickBest(pool){
+  if(!pool||pool.length<=1)return pool?.[0]??null;
+  let ev=pool;
+  if(pool.length<=60)ev=ALL;
+  else if(pool.length>1200){
+    const s=[...pool];for(let i=s.length-1;i>0;i--){const j=0|Math.random()*(i+1);[s[i],s[j]]=[s[j],s[i]];}ev=s.slice(0,600);
+  }
+  const inP=new Set(pool);let bst=pool[0],bW=Infinity;
+  for(const g of ev){const b=[0,0,0,0,0];for(const c of pool)b[hits(g,c)]++;const w=Math.max(...b);if(w<bW||(w===bW&&inP.has(g)&&!inP.has(bst))){bW=w;bst=g;}}
+  return bst;
+}
+function rand4(){return(0|Math.random()*10000).toString().padStart(4,'0');}
+
+let state={phase:'setup',pSecret:'',aSecret:'',pool:ALL,history:[],turn:'p',winner:null,thinking:false,aiMoves:0,sInput:'',gInput:''};
+let aiTimer=null;
+
+function setState(upd){state={...state,...upd};render();}
+
+function startGame(){
+  if(!/^\d{4}$/.test(state.sInput))return;
+  const ai=rand4();
+  clearTimeout(aiTimer);
+  state={phase:'play',pSecret:state.sInput,aSecret:ai,pool:ALL,history:[],turn:'p',winner:null,thinking:false,aiMoves:0,sInput:state.sInput,gInput:''};
+  render();
+}
+
+function submitP(){
+  if(!/^\d{4}$/.test(state.gInput)||state.turn!=='p'||state.phase!=='play')return;
+  const r=hits(state.gInput,state.aSecret);
+  const e={who:'p',guess:state.gInput,resp:r};
+  const newH=[...state.history,e];
+  if(r===4){state={...state,history:newH,gInput:'',winner:'p',phase:'over'};render();return;}
+  state={...state,history:newH,gInput:'',turn:'a',thinking:true};render();
+  scheduleAI();
+}
+
+function scheduleAI(){
+  clearTimeout(aiTimer);
+  aiTimer=setTimeout(()=>{
+    const pool=state.pool;
+    const g=state.aiMoves===0?'1234':(pickBest(pool)??pool[0]);
+    const r=hits(g,state.pSecret);
+    const np=narrow(pool,g,r);
+    const e={who:'a',guess:g,resp:r,left:np.length};
+    const newH=[...state.history,e];
+    if(r===4){state={...state,history:newH,pool:np,aiMoves:state.aiMoves+1,thinking:false,winner:'a',phase:'over'};render();return;}
+    state={...state,history:newH,pool:np,aiMoves:state.aiMoves+1,thinking:false,turn:'p'};render();
+  }, 800+Math.random()*400);
+}
+
+function renderDigits(str,muted){
+  return str.split('').map(d=>`<div class="digit-cell" style="${muted?'color:var(--color-text-tertiary);background:var(--color-background-secondary)':''}">${d}</div>`).join('');
+}
+
+function renderDots(n,label){
+  const dots=[0,1,2,3].map(i=>`<div class="dot" style="background:${i<n?'var(--color-text-success)':'var(--color-border-secondary)'}"></div>`).join('');
+  return `<div style="display:flex;align-items:center;gap:4px;flex:1">${dots}<span style="font-size:12px;color:var(--color-text-secondary);margin-left:3px">${n}位</span></div>`;
+}
+
+function renderHistory(){
+  if(state.history.length===0)return`<p style="text-align:center;color:var(--color-text-tertiary);font-size:13px;padding:2rem 0">游戏开始——请输入你的第一个猜测</p>`;
+  let html='';
+  state.history.forEach((e,i)=>{
+    const rn=Math.floor(i/2)+1;
+    const isP=e.who==='p';
+    const tag=isP
+      ?`<span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:12px;white-space:nowrap;background:var(--color-background-info);color:var(--color-text-info)">你</span>`
+      :`<span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:12px;white-space:nowrap;background:var(--color-background-danger);color:var(--color-text-danger)">AI</span>`;
+    const rLabel=i%2===0
+      ?`<span style="font-size:11px;color:var(--color-text-tertiary);min-width:26px;text-align:right">R${rn}</span>`
+      :`<span style="min-width:26px"></span>`;
+    const rem=!isP&&e.left!==undefined?`<span style="font-size:11px;color:var(--color-text-tertiary);white-space:nowrap">剩${e.left}</span>`:'';
+    html+=`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
+      ${rLabel}${tag}
+      <div style="display:flex;gap:3px">${renderDigits(e.guess,false)}</div>
+      ${renderDots(e.resp)}${rem}
+    </div>`;
+  });
+  if(state.thinking)html+=`<div style="padding:10px 0;color:var(--color-text-tertiary);font-size:13px;text-align:center">⚡ 计算最优猜测中…</div>`;
+  return html;
+}
+
+function render(){
+  const app=document.getElementById('app');
+  const curRound=Math.floor(state.history.length/2)+1;
+  const pG=state.history.filter(h=>h.who==='p').length;
+  const aG=state.history.filter(h=>h.who==='a').length;
+
+  if(state.phase==='setup'){
+    app.innerHTML=`
+<h1 style="font-size:22px;font-weight:500;margin-bottom:6px">💣 数字炸弹</h1>
+<p style="color:var(--color-text-secondary);font-size:15px;margin-bottom:20px;line-height:1.6">与AI对决：双方各设一个四位密码，轮流猜测，每次反馈<strong style="font-weight:500">几位数字在正确位置上命中</strong>。先猜中者胜。</p>
+<label style="font-size:13px;color:var(--color-text-secondary);display:block;margin-bottom:6px">设置你的密码（四位数字，可重复）</label>
+<input id="si" type="text" maxlength="4" value="${state.sInput}" placeholder="0000–9999" style="letter-spacing:10px;font-size:22px;text-align:center;font-family:var(--font-mono);margin-bottom:10px" />
+<button id="go" style="width:100%;padding:10px 0;font-size:15px">开始对决 ↗</button>
+<div style="margin-top:20px;padding:14px 16px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-secondary);line-height:1.8">
+  <div style="font-weight:500;color:var(--color-text-primary);margin-bottom:4px">🧠 算法说明</div>
+  AI采用 <strong style="font-weight:500">Minimax 极小化极大算法</strong>：维护候选数字集，每次选择能在最坏情况下将候选集缩减最多的猜测。
+  配合首轮固定猜测"1234"，理论上最多 <strong style="font-weight:500">7轮</strong> 内必能猜中任意四位密码。
+</div>`;
+    document.getElementById('si').addEventListener('input',e=>{state.sInput=e.target.value.replace(/\D/g,'').slice(0,4);e.target.value=state.sInput;});
+    document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
+    document.getElementById('go').addEventListener('click',startGame);
+    return;
+  }
+
+  // Status badge
+  let sBg='var(--color-background-secondary)',sClr='var(--color-text-secondary)',sTxt='';
+  if(state.phase==='over'){
+    sBg=state.winner==='p'?'var(--color-background-success)':'var(--color-background-danger)';
+    sClr=state.winner==='p'?'var(--color-text-success)':'var(--color-text-danger)';
+    sTxt=state.winner==='p'?`🎉 你赢了！（${pG}次）`:`🤖 AI赢！（${aG}次）`;
+  } else {
+    sBg=state.turn==='p'?'var(--color-background-info)':'var(--color-background-secondary)';
+    sClr=state.turn==='p'?'var(--color-text-info)':'var(--color-text-secondary)';
+    sTxt=state.thinking?'AI计算中…':state.turn==='p'?`第${curRound}轮 · 你的回合`:`第${curRound}轮 · AI回合`;
+  }
+
+  const aiDisp=state.phase==='over'?state.aSecret:'????';
+  const aiMuted=state.phase!=='over';
+
+  const statsLine=state.phase==='play'?`<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">候选剩余：${state.pool.length} 个</div>`:'';
+
+  let bottomHTML='';
+  if(state.phase==='play'&&state.turn==='p'&&!state.thinking){
+    bottomHTML=`<div style="display:flex;gap:8px">
+      <input id="gi" type="text" maxlength="4" value="${state.gInput}" placeholder="输入四位猜测" style="flex:1;letter-spacing:8px;font-size:20px;text-align:center;font-family:var(--font-mono)" />
+      <button id="gob" style="padding:0 20px;font-size:15px">猜！</button>
+    </div>`;
+  } else if(state.phase==='play'&&(state.turn==='a'||state.thinking)){
+    bottomHTML=`<div style="text-align:center;padding:10px 0;color:var(--color-text-secondary);font-size:14px">AI 正在分析，请稍候…</div>`;
+  } else if(state.phase==='over'){
+    const msg=state.winner==='p'
+      ?`你在第 ${pG} 次猜中了 AI 的密码 <strong class="mono">${state.aSecret}</strong>！AI 猜了你 ${aG} 次。`
+      :`AI 仅用 ${aG} 次就破解了你的密码！你猜了 ${pG} 次。`;
+    bottomHTML=`<div style="padding:14px 16px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);text-align:center">
+      <p style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">${msg}</p>
+      <button id="again" style="padding:8px 24px">再来一局 ↗</button>
+    </div>`;
+  }
+
+  app.innerHTML=`
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+  <span style="font-size:18px;font-weight:500">💣 数字炸弹</span>
+  <span style="font-size:13px;padding:4px 14px;border-radius:20px;background:${sBg};color:${sClr}">${sTxt}</span>
+</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+  <div style="padding:12px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary)">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">你的密码</div>
+    <div style="display:flex;gap:4px">${renderDigits(state.pSecret,false)}</div>
+  </div>
+  <div style="padding:12px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary)">
+    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">AI 的密码${state.phase==='over'?' (已揭晓)':''}</div>
+    <div style="display:flex;gap:4px">${renderDigits(aiDisp,aiMuted)}</div>
+    ${statsLine}
+  </div>
+</div>
+<div id="hist" style="height:252px;overflow-y:auto;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:2px 12px;margin-bottom:12px">
+  ${renderHistory()}
+</div>
+${bottomHTML}`;
+
+  // Scroll history
+  const h=document.getElementById('hist');
+  if(h)h.scrollTop=h.scrollHeight;
+
+  // Bind events
+  const si=document.getElementById('gi');
+  if(si){
+    si.addEventListener('input',e=>{state.gInput=e.target.value.replace(/\D/g,'').slice(0,4);e.target.value=state.gInput;});
+    si.addEventListener('keydown',e=>{if(e.key==='Enter')submitP();});
+    si.focus();
+  }
+  const gob=document.getElementById('gob');
+  if(gob)gob.addEventListener('click',submitP);
+  const ag=document.getElementById('again');
+  if(ag)ag.addEventListener('click',()=>{state={...state,phase:'setup',gInput:'',sInput:''};render();});
+}
+
+render();
+</script>
