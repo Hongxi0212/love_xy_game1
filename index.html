@@ -112,11 +112,14 @@ body {
   display: flex;
   gap: 8px;
   justify-content: center;
+  width: 100%;
 }
 
 .digit-input {
-  width: 64px;
-  height: 72px;
+  flex: 1;
+  min-width: 0;
+  max-width: 72px;
+  height: 68px;
   background: var(--surface);
   border: 1px solid var(--border-bright);
   border-radius: var(--r);
@@ -483,28 +486,35 @@ body {
   padding: 10px;
   border-top: 1px solid var(--border);
   background: var(--surface);
+  width: 100%;
+  overflow: hidden;
 }
 
 .input-row {
   display: flex;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
 }
 
 .guess-input-wrap {
   flex: 1;
+  min-width: 0;
   display: flex;
   gap: 4px;
 }
 
 .guess-digit-input {
   flex: 1;
-  height: 52px;
+  min-width: 0;
+  width: 0;
+  height: 48px;
   background: var(--surface2);
   border: 1px solid var(--border-bright);
   border-radius: var(--r-sm);
   color: var(--text);
   font-family: var(--mono);
-  font-size: 1.4rem;
+  font-size: 1.25rem;
   font-weight: 700;
   text-align: center;
   outline: none;
@@ -518,17 +528,18 @@ body {
 }
 
 .guess-btn {
-  height: 52px;
-  padding: 0 18px;
+  height: 48px;
+  padding: 0 14px;
   background: var(--accent);
   border: none;
   border-radius: var(--r-sm);
   color: #0a0a0f;
   font-family: var(--mono);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
+  white-space: nowrap;
   transition: transform 0.1s, box-shadow 0.15s;
   letter-spacing: 0.04em;
 }
