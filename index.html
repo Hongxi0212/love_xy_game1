@@ -1,18 +1,615 @@
-
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>数字炸弹</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{font-family:var(--font-sans);color:var(--color-text-primary)}
-input[type=text]{width:100%;padding:8px 12px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary);outline:none;transition:border-color .15s}
-input[type=text]:focus{border-color:var(--color-border-primary)}
-button{cursor:pointer;background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);color:var(--color-text-primary);padding:9px 18px;font-size:14px;font-family:var(--font-sans);transition:background .15s,transform .1s}
-button:hover{background:var(--color-background-secondary)}
-button:active{transform:scale(0.97)}
-.mono{font-family:var(--font-mono)}
-.digit-cell{width:32px;height:36px;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:500;font-family:var(--font-mono);background:var(--color-background-primary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md)}
-.dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
-</style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1c1c28;
+  --border: rgba(255,255,255,0.08);
+  --border-bright: rgba(255,255,255,0.18);
+  --accent: #e8ff47;
+  --accent-dim: rgba(232,255,71,0.12);
+  --accent-glow: rgba(232,255,71,0.25);
+  --red: #ff4d6d;
+  --red-dim: rgba(255,77,109,0.12);
+  --blue: #47b8ff;
+  --blue-dim: rgba(71,184,255,0.12);
+  --green: #47ffb8;
+  --green-dim: rgba(71,255,184,0.12);
+  --text: #f0f0f8;
+  --text2: rgba(240,240,248,0.55);
+  --text3: rgba(240,240,248,0.3);
+  --mono: 'Space Mono', monospace;
+  --sans: 'Noto Sans SC', sans-serif;
+  --r: 10px;
+  --r-sm: 6px;
+}
 
-<div id="app" style="padding:1.5rem;max-width:540px;margin:0 auto"></div>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(232,255,71,0.04) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 50% at 80% 90%, rgba(71,184,255,0.04) 0%, transparent 60%);
+}
+
+#app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0;
+}
+
+/* ── Setup screen ─────────────────────────────── */
+.setup-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1.25rem 2rem;
+  gap: 1.5rem;
+}
+
+.setup-hero {
+  text-align: center;
+  padding: 1.5rem 0 0.5rem;
+}
+
+.bomb-icon {
+  font-size: 3rem;
+  display: block;
+  margin-bottom: 0.75rem;
+  animation: pulse-bomb 2.4s ease-in-out infinite;
+}
+
+@keyframes pulse-bomb {
+  0%,100% { transform: scale(1) rotate(-3deg); }
+  50% { transform: scale(1.08) rotate(3deg); }
+}
+
+.setup-title {
+  font-family: var(--mono);
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-shadow: 0 0 32px var(--accent-glow);
+}
+
+.setup-sub {
+  font-size: 0.82rem;
+  color: var(--text2);
+  margin-top: 0.4rem;
+  line-height: 1.6;
+}
+
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 0.5rem;
+}
+
+.secret-input-wrap {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.digit-input {
+  width: 64px;
+  height: 72px;
+  background: var(--surface);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--r);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  caret-color: var(--accent);
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  -webkit-appearance: none;
+}
+
+.digit-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-dim), inset 0 0 12px var(--accent-dim);
+  background: rgba(232,255,71,0.04);
+}
+
+.hidden-master {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+.start-btn {
+  width: 100%;
+  height: 56px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r);
+  color: #0a0a0f;
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.12s, box-shadow 0.15s;
+}
+
+.start-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.start-btn:hover { box-shadow: 0 0 24px var(--accent-glow); }
+.start-btn:active { transform: scale(0.97); }
+.start-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.algo-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 1rem 1.1rem;
+  font-size: 0.8rem;
+  color: var(--text2);
+  line-height: 1.7;
+}
+
+.algo-card-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tag {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  padding: 1px 7px;
+  border-radius: 20px;
+  border: 1px solid;
+  font-weight: 400;
+}
+.tag-accent { color: var(--accent); border-color: rgba(232,255,71,0.3); background: var(--accent-dim); }
+.tag-red    { color: var(--red);    border-color: rgba(255,77,109,0.3);  background: var(--red-dim); }
+.tag-blue   { color: var(--blue);   border-color: rgba(71,184,255,0.3);  background: var(--blue-dim); }
+.tag-green  { color: var(--green);  border-color: rgba(71,255,184,0.3);  background: var(--green-dim); }
+
+/* ── Game screen ──────────────────────────────── */
+.game-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.game-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  gap: 8px;
+}
+
+.game-title {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.status-badge {
+  font-size: 0.72rem;
+  font-weight: 500;
+  padding: 4px 12px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.badges-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* Secret panels */
+.secrets-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px 10px 0;
+}
+
+.secret-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 10px 12px;
+}
+
+.secret-panel-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 7px;
+}
+
+.digit-row {
+  display: flex;
+  gap: 5px;
+}
+
+.digit-box {
+  flex: 1;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border-bright);
+  background: var(--surface2);
+  color: var(--text);
+  transition: all 0.2s;
+}
+
+.digit-box.muted {
+  color: var(--text3);
+  border-color: var(--border);
+}
+
+.digit-box.accent { color: var(--accent); border-color: rgba(232,255,71,0.25); }
+
+.pool-info {
+  font-size: 0.65rem;
+  color: var(--text3);
+  margin-top: 5px;
+  font-family: var(--mono);
+}
+
+.pool-bar-wrap {
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.pool-bar {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* History */
+.history-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.history-empty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text3);
+  font-size: 0.8rem;
+  text-align: center;
+  padding: 2rem;
+  line-height: 1.6;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  animation: row-in 0.2s ease;
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.history-row.player-row {
+  border-color: rgba(71,184,255,0.2);
+  background: rgba(71,184,255,0.04);
+}
+
+.history-row.ai-row {
+  border-color: rgba(255,77,109,0.15);
+  background: rgba(255,77,109,0.03);
+}
+
+.round-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text3);
+  min-width: 22px;
+  text-align: right;
+}
+
+.who-tag {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  letter-spacing: 0.04em;
+}
+
+.who-p { background: var(--blue-dim); color: var(--blue); }
+.who-a { background: var(--red-dim);  color: var(--red); }
+
+.guess-digits {
+  display: flex;
+  gap: 3px;
+  flex: 1;
+}
+
+.guess-digit {
+  width: 26px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+  border-radius: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border-bright);
+  color: var(--text);
+}
+
+.hits-display {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.hit-pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transition: all 0.3s;
+}
+
+.hit-count-label {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text2);
+  min-width: 22px;
+}
+
+.left-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text3);
+  flex-shrink: 0;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Thinking row */
+.thinking-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  background: var(--red-dim);
+  border: 1px solid rgba(255,77,109,0.15);
+  font-size: 0.75rem;
+  color: var(--red);
+  font-family: var(--mono);
+}
+
+.thinking-dots {
+  display: flex; gap: 3px;
+}
+.thinking-dots span {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+  animation: dot-bounce 1.2s ease-in-out infinite;
+}
+.thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-bounce {
+  0%,80%,100% { transform: scale(0.6); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Input area */
+.input-area {
+  padding: 10px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.guess-input-wrap {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+}
+
+.guess-digit-input {
+  flex: 1;
+  height: 52px;
+  background: var(--surface2);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  -webkit-appearance: none;
+}
+
+.guess-digit-input:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 2px rgba(71,184,255,0.15);
+}
+
+.guess-btn {
+  height: 52px;
+  padding: 0 18px;
+  background: var(--accent);
+  border: none;
+  border-radius: var(--r-sm);
+  color: #0a0a0f;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: transform 0.1s, box-shadow 0.15s;
+  letter-spacing: 0.04em;
+}
+.guess-btn:hover { box-shadow: 0 0 16px var(--accent-glow); }
+.guess-btn:active { transform: scale(0.96); }
+
+/* Over screen */
+.over-banner {
+  margin: 10px;
+  padding: 1rem 1.2rem;
+  border-radius: var(--r);
+  text-align: center;
+}
+
+.over-banner.win {
+  background: var(--green-dim);
+  border: 1px solid rgba(71,255,184,0.2);
+}
+.over-banner.lose {
+  background: var(--red-dim);
+  border: 1px solid rgba(255,77,109,0.2);
+}
+
+.over-title {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.over-title.win  { color: var(--green); }
+.over-title.lose { color: var(--red); }
+
+.over-sub {
+  font-size: 0.8rem;
+  color: var(--text2);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.replay-btn {
+  height: 44px;
+  padding: 0 24px;
+  background: transparent;
+  border: 1px solid var(--border-bright);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  letter-spacing: 0.04em;
+}
+.replay-btn:hover { background: var(--surface2); border-color: var(--border-bright); }
+
+/* revealed secret */
+.secret-panel.revealed .digit-box {
+  color: var(--accent);
+  border-color: rgba(232,255,71,0.3);
+  box-shadow: inset 0 0 8px var(--accent-dim);
+  animation: reveal-pop 0.35s ease;
+}
+@keyframes reveal-pop {
+  0%   { transform: scale(0.85); opacity: 0; }
+  60%  { transform: scale(1.08); }
+  100% { transform: scale(1);   opacity: 1; }
+}
+
+/* ── Mobile safe area ─────────────────────────── */
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .input-area { padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+}
+
+/* ── Scrollbar ────────────────────────────────── */
+.history-scroll::-webkit-scrollbar { width: 3px; }
+.history-scroll::-webkit-scrollbar-track { background: transparent; }
+.history-scroll::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 3px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
 
 <script>
 const ALL = Array.from({length:10000},(_,i)=>i.toString().padStart(4,'0'));
@@ -32,26 +629,264 @@ function pickBest(pool){
 }
 function rand4(){return(0|Math.random()*10000).toString().padStart(4,'0');}
 
-let state={phase:'setup',pSecret:'',aSecret:'',pool:ALL,history:[],turn:'p',winner:null,thinking:false,aiMoves:0,sInput:'',gInput:''};
+let state={
+  phase:'setup', pSecret:'', aSecret:'', pool:ALL,
+  history:[], turn:'p', winner:null, thinking:false,
+  aiMoves:0, digits:['','','','']
+};
 let aiTimer=null;
 
-function setState(upd){state={...state,...upd};render();}
+// ── Render helpers ─────────────────────────────
+
+function digitBoxes(str, muted, revealed){
+  return str.split('').map(d=>{
+    const cls = muted ? 'muted' : revealed ? 'accent' : '';
+    return `<div class="digit-box ${cls}">${d}</div>`;
+  }).join('');
+}
+
+function guessDigits(str){
+  return str.split('').map(d=>`<div class="guess-digit">${d}</div>`).join('');
+}
+
+function hitPips(n){
+  const colors = ['var(--border-bright)','var(--border-bright)','var(--border-bright)','var(--border-bright)'];
+  for(let i=0;i<n;i++){
+    colors[i] = n===4 ? 'var(--green)' : n>=2 ? 'var(--accent)' : 'var(--blue)';
+  }
+  const pips = colors.map(c=>`<div class="hit-pip" style="background:${c}"></div>`).join('');
+  return `<div class="hits-display">${pips}<span class="hit-count-label">${n}位</span></div>`;
+}
+
+// ── Setup screen ───────────────────────────────
+
+function renderSetup(){
+  const filled = state.digits.every(d=>d!=='');
+  return `
+<div class="setup-wrap">
+  <div class="setup-hero">
+    <span class="bomb-icon">💣</span>
+    <div class="setup-title">数字炸弹</div>
+    <div class="setup-sub">双方各持一个四位密码<br>轮流猜测，位置与数字均需正确才算命中</div>
+  </div>
+
+  <div>
+    <div class="section-label">设置你的四位密码</div>
+    <div class="secret-input-wrap" id="digit-inputs">
+      ${[0,1,2,3].map(i=>`
+        <input class="digit-input" id="di${i}" type="tel" inputmode="numeric"
+          maxlength="1" value="${state.digits[i]}"
+          autocomplete="off" data-idx="${i}" />
+      `).join('')}
+    </div>
+  </div>
+
+  <button class="start-btn" id="go-btn" ${filled?'':'disabled'}>开始对决</button>
+
+  <div class="algo-card">
+    <div class="algo-card-title">
+      <span>算法说明</span>
+      <span class="tag tag-accent">Minimax</span>
+    </div>
+    AI维护所有候选数字的可能集合，每次选择在最坏情况下能<strong>将候选集缩减最多</strong>的猜测。首轮固定猜
+    <span style="font-family:var(--mono);color:var(--accent)">1234</span>，
+    理论上最多 <strong>7轮</strong> 内必能破解任意四位密码。
+  </div>
+</div>`;
+}
+
+function bindSetup(){
+  const inputs = [0,1,2,3].map(i=>document.getElementById(`di${i}`));
+  inputs.forEach((inp,i)=>{
+    inp.addEventListener('input', e=>{
+      const v = e.target.value.replace(/\D/g,'').slice(-1);
+      state.digits[i] = v;
+      inp.value = v;
+      document.getElementById('go-btn').disabled = !state.digits.every(d=>d!=='');
+      if(v && i<3) inputs[i+1].focus();
+    });
+    inp.addEventListener('keydown', e=>{
+      if(e.key==='Backspace' && !state.digits[i] && i>0){
+        inputs[i-1].focus();
+        inputs[i-1].select();
+      }
+      if(e.key==='Enter' && state.digits.every(d=>d!=='')) startGame();
+    });
+  });
+  document.getElementById('go-btn').addEventListener('click', startGame);
+}
+
+// ── Game screen ────────────────────────────────
+
+function renderGame(){
+  const over = state.phase==='over';
+  const pG = state.history.filter(h=>h.who==='p').length;
+  const aG = state.history.filter(h=>h.who==='a').length;
+
+  // Status badge
+  let badgeHTML='';
+  if(over){
+    const cls = state.winner==='p' ? 'tag tag-green' : 'tag tag-red';
+    const txt = state.winner==='p' ? `胜利 ${pG}次` : `失败 ${aG}次`;
+    badgeHTML=`<span class="${cls}" style="font-family:var(--mono);font-size:0.68rem">${txt}</span>`;
+  } else {
+    const isP = state.turn==='p' && !state.thinking;
+    badgeHTML=`
+      <span class="tag ${isP?'tag-blue':'tag-red'}" style="font-family:var(--mono);font-size:0.68rem">
+        ${state.thinking ? '计算中…' : isP ? '你的回合' : 'AI回合'}
+      </span>`;
+  }
+
+  // History rows
+  let histHTML='';
+  if(state.history.length===0){
+    histHTML=`<div class="history-empty">输入你的第一次猜测<br>开始对决</div>`;
+  } else {
+    state.history.forEach((e,i)=>{
+      const rn = Math.floor(i/2)+1;
+      const isP = e.who==='p';
+      const rLabel = i%2===0 ? `<span class="round-label">R${rn}</span>` : `<span class="round-label"></span>`;
+      const whoTag = isP
+        ? `<span class="who-tag who-p">你</span>`
+        : `<span class="who-tag who-a">AI</span>`;
+      const rem = (!isP && e.left!==undefined)
+        ? `<span class="left-label">剩${e.left}</span>` : `<span class="left-label"></span>`;
+      histHTML+=`<div class="history-row ${isP?'player-row':'ai-row'}">
+        ${rLabel}${whoTag}
+        <div class="guess-digits">${guessDigits(e.guess)}</div>
+        ${hitPips(e.resp)}
+        ${rem}
+      </div>`;
+    });
+    if(state.thinking){
+      histHTML+=`<div class="thinking-row">
+        <div class="thinking-dots"><span></span><span></span><span></span></div>
+        AI正在计算最优猜测…
+      </div>`;
+    }
+  }
+
+  // Pool bar
+  const pct = Math.round(state.pool.length/10000*100);
+
+  // Bottom area
+  let bottomHTML='';
+  if(over){
+    const win = state.winner==='p';
+    bottomHTML=`<div class="over-banner ${win?'win':'lose'}">
+      <div class="over-title ${win?'win':'lose'}">${win?'🎉 破解成功':'💥 炸弹引爆'}</div>
+      <div class="over-sub">${win
+        ? `你用 ${pG} 次猜中了 AI 的密码<br>AI 猜了你 ${aG} 次`
+        : `AI 仅用 ${aG} 次就破解了你的密码<br>你猜了 ${pG} 次`}</div>
+      <button class="replay-btn" id="again-btn">再来一局</button>
+    </div>`;
+  } else if(state.turn==='p'&&!state.thinking){
+    bottomHTML=`<div class="input-area">
+      <div class="input-row">
+        <div class="guess-input-wrap" id="guess-inputs">
+          ${[0,1,2,3].map(j=>`<input class="guess-digit-input" id="gi${j}" type="tel" inputmode="numeric" maxlength="1" autocomplete="off" data-idx="${j}" />`).join('')}
+        </div>
+        <button class="guess-btn" id="guess-btn">猜！</button>
+      </div>
+    </div>`;
+  } else {
+    bottomHTML=`<div class="input-area" style="text-align:center;color:var(--text2);font-size:0.8rem;font-family:var(--mono);padding:16px 10px">AI 正在分析…</div>`;
+  }
+
+  const aiSecret = over ? state.aSecret : '????';
+  const aiMuted  = !over;
+
+  return `
+<div class="game-wrap">
+  <div class="game-header">
+    <span class="game-title">💣 数字炸弹</span>
+    <div class="badges-row">${badgeHTML}</div>
+  </div>
+
+  <div class="secrets-row">
+    <div class="secret-panel">
+      <div class="secret-panel-label">你的密码</div>
+      <div class="digit-row">${digitBoxes(state.pSecret, false, false)}</div>
+    </div>
+    <div class="secret-panel ${over?'revealed':''}">
+      <div class="secret-panel-label">AI 的密码${over?' (已揭晓)':''}</div>
+      <div class="digit-row">${digitBoxes(aiSecret, aiMuted, over)}</div>
+      ${!over?`<div class="pool-info">候选剩余 ${state.pool.length.toLocaleString()} 个</div>
+      <div class="pool-bar-wrap"><div class="pool-bar" style="width:${pct}%"></div></div>`:''}
+    </div>
+  </div>
+
+  <div class="history-scroll" id="hist">${histHTML}</div>
+  ${bottomHTML}
+</div>`;
+}
+
+function bindGame(){
+  const over = state.phase==='over';
+
+  if(over){
+    document.getElementById('again-btn')?.addEventListener('click',()=>{
+      state={...state,phase:'setup',digits:['','','',''],history:[],pool:ALL};
+      render();
+    });
+    return;
+  }
+
+  if(state.turn==='p'&&!state.thinking){
+    const ginputs=[0,1,2,3].map(j=>document.getElementById(`gi${j}`));
+    let guessArr=['','','',''];
+    ginputs.forEach((inp,j)=>{
+      inp.addEventListener('input',e=>{
+        const v=e.target.value.replace(/\D/g,'').slice(-1);
+        guessArr[j]=v;
+        inp.value=v;
+        if(v&&j<3)ginputs[j+1].focus();
+      });
+      inp.addEventListener('keydown',e=>{
+        if(e.key==='Backspace'&&!guessArr[j]&&j>0){
+          ginputs[j-1].focus();
+          ginputs[j-1].select();
+        }
+        if(e.key==='Enter') trySubmit();
+      });
+    });
+    document.getElementById('guess-btn').addEventListener('click', trySubmit);
+    ginputs[0]?.focus();
+
+    function trySubmit(){
+      const g=guessArr.join('');
+      if(!/^\d{4}$/.test(g))return;
+      submitGuess(g);
+    }
+  }
+
+  // Scroll hist to bottom
+  const h=document.getElementById('hist');
+  if(h) requestAnimationFrame(()=>{ h.scrollTop=h.scrollHeight; });
+}
+
+// ── Game logic ─────────────────────────────────
 
 function startGame(){
-  if(!/^\d{4}$/.test(state.sInput))return;
+  const secret=state.digits.join('');
+  if(!/^\d{4}$/.test(secret))return;
   const ai=rand4();
   clearTimeout(aiTimer);
-  state={phase:'play',pSecret:state.sInput,aSecret:ai,pool:ALL,history:[],turn:'p',winner:null,thinking:false,aiMoves:0,sInput:state.sInput,gInput:''};
+  state={
+    phase:'play', pSecret:secret, aSecret:ai,
+    pool:ALL, history:[], turn:'p', winner:null,
+    thinking:false, aiMoves:0, digits:state.digits
+  };
   render();
 }
 
-function submitP(){
-  if(!/^\d{4}$/.test(state.gInput)||state.turn!=='p'||state.phase!=='play')return;
-  const r=hits(state.gInput,state.aSecret);
-  const e={who:'p',guess:state.gInput,resp:r};
+function submitGuess(g){
+  const r=hits(g,state.aSecret);
+  const e={who:'p',guess:g,resp:r};
   const newH=[...state.history,e];
-  if(r===4){state={...state,history:newH,gInput:'',winner:'p',phase:'over'};render();return;}
-  state={...state,history:newH,gInput:'',turn:'a',thinking:true};render();
+  if(r===4){state={...state,history:newH,winner:'p',phase:'over'};render();return;}
+  state={...state,history:newH,turn:'a',thinking:true};
+  render();
   scheduleAI();
 }
 
@@ -65,138 +900,29 @@ function scheduleAI(){
     const e={who:'a',guess:g,resp:r,left:np.length};
     const newH=[...state.history,e];
     if(r===4){state={...state,history:newH,pool:np,aiMoves:state.aiMoves+1,thinking:false,winner:'a',phase:'over'};render();return;}
-    state={...state,history:newH,pool:np,aiMoves:state.aiMoves+1,thinking:false,turn:'p'};render();
-  }, 800+Math.random()*400);
+    state={...state,history:newH,pool:np,aiMoves:state.aiMoves+1,thinking:false,turn:'p'};
+    render();
+  }, 700+Math.random()*500);
 }
 
-function renderDigits(str,muted){
-  return str.split('').map(d=>`<div class="digit-cell" style="${muted?'color:var(--color-text-tertiary);background:var(--color-background-secondary)':''}">${d}</div>`).join('');
-}
-
-function renderDots(n,label){
-  const dots=[0,1,2,3].map(i=>`<div class="dot" style="background:${i<n?'var(--color-text-success)':'var(--color-border-secondary)'}"></div>`).join('');
-  return `<div style="display:flex;align-items:center;gap:4px;flex:1">${dots}<span style="font-size:12px;color:var(--color-text-secondary);margin-left:3px">${n}位</span></div>`;
-}
-
-function renderHistory(){
-  if(state.history.length===0)return`<p style="text-align:center;color:var(--color-text-tertiary);font-size:13px;padding:2rem 0">游戏开始——请输入你的第一个猜测</p>`;
-  let html='';
-  state.history.forEach((e,i)=>{
-    const rn=Math.floor(i/2)+1;
-    const isP=e.who==='p';
-    const tag=isP
-      ?`<span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:12px;white-space:nowrap;background:var(--color-background-info);color:var(--color-text-info)">你</span>`
-      :`<span style="font-size:11px;font-weight:500;padding:2px 8px;border-radius:12px;white-space:nowrap;background:var(--color-background-danger);color:var(--color-text-danger)">AI</span>`;
-    const rLabel=i%2===0
-      ?`<span style="font-size:11px;color:var(--color-text-tertiary);min-width:26px;text-align:right">R${rn}</span>`
-      :`<span style="min-width:26px"></span>`;
-    const rem=!isP&&e.left!==undefined?`<span style="font-size:11px;color:var(--color-text-tertiary);white-space:nowrap">剩${e.left}</span>`:'';
-    html+=`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:0.5px solid var(--color-border-tertiary)">
-      ${rLabel}${tag}
-      <div style="display:flex;gap:3px">${renderDigits(e.guess,false)}</div>
-      ${renderDots(e.resp)}${rem}
-    </div>`;
-  });
-  if(state.thinking)html+=`<div style="padding:10px 0;color:var(--color-text-tertiary);font-size:13px;text-align:center">⚡ 计算最优猜测中…</div>`;
-  return html;
-}
+// ── Render ─────────────────────────────────────
 
 function render(){
   const app=document.getElementById('app');
-  const curRound=Math.floor(state.history.length/2)+1;
-  const pG=state.history.filter(h=>h.who==='p').length;
-  const aG=state.history.filter(h=>h.who==='a').length;
+  app.style.display='flex';
+  app.style.flexDirection='column';
+  app.style.minHeight='100dvh';
 
   if(state.phase==='setup'){
-    app.innerHTML=`
-<h1 style="font-size:22px;font-weight:500;margin-bottom:6px">💣 数字炸弹</h1>
-<p style="color:var(--color-text-secondary);font-size:15px;margin-bottom:20px;line-height:1.6">与AI对决：双方各设一个四位密码，轮流猜测，每次反馈<strong style="font-weight:500">几位数字在正确位置上命中</strong>。先猜中者胜。</p>
-<label style="font-size:13px;color:var(--color-text-secondary);display:block;margin-bottom:6px">设置你的密码（四位数字，可重复）</label>
-<input id="si" type="text" maxlength="4" value="${state.sInput}" placeholder="0000–9999" style="letter-spacing:10px;font-size:22px;text-align:center;font-family:var(--font-mono);margin-bottom:10px" />
-<button id="go" style="width:100%;padding:10px 0;font-size:15px">开始对决 ↗</button>
-<div style="margin-top:20px;padding:14px 16px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);font-size:13px;color:var(--color-text-secondary);line-height:1.8">
-  <div style="font-weight:500;color:var(--color-text-primary);margin-bottom:4px">🧠 算法说明</div>
-  AI采用 <strong style="font-weight:500">Minimax 极小化极大算法</strong>：维护候选数字集，每次选择能在最坏情况下将候选集缩减最多的猜测。
-  配合首轮固定猜测"1234"，理论上最多 <strong style="font-weight:500">7轮</strong> 内必能猜中任意四位密码。
-</div>`;
-    document.getElementById('si').addEventListener('input',e=>{state.sInput=e.target.value.replace(/\D/g,'').slice(0,4);e.target.value=state.sInput;});
-    document.getElementById('si').addEventListener('keydown',e=>{if(e.key==='Enter')startGame();});
-    document.getElementById('go').addEventListener('click',startGame);
-    return;
-  }
-
-  // Status badge
-  let sBg='var(--color-background-secondary)',sClr='var(--color-text-secondary)',sTxt='';
-  if(state.phase==='over'){
-    sBg=state.winner==='p'?'var(--color-background-success)':'var(--color-background-danger)';
-    sClr=state.winner==='p'?'var(--color-text-success)':'var(--color-text-danger)';
-    sTxt=state.winner==='p'?`🎉 你赢了！（${pG}次）`:`🤖 AI赢！（${aG}次）`;
+    app.innerHTML=renderSetup();
+    bindSetup();
   } else {
-    sBg=state.turn==='p'?'var(--color-background-info)':'var(--color-background-secondary)';
-    sClr=state.turn==='p'?'var(--color-text-info)':'var(--color-text-secondary)';
-    sTxt=state.thinking?'AI计算中…':state.turn==='p'?`第${curRound}轮 · 你的回合`:`第${curRound}轮 · AI回合`;
+    app.innerHTML=renderGame();
+    bindGame();
   }
-
-  const aiDisp=state.phase==='over'?state.aSecret:'????';
-  const aiMuted=state.phase!=='over';
-
-  const statsLine=state.phase==='play'?`<div style="font-size:12px;color:var(--color-text-tertiary);margin-top:4px">候选剩余：${state.pool.length} 个</div>`:'';
-
-  let bottomHTML='';
-  if(state.phase==='play'&&state.turn==='p'&&!state.thinking){
-    bottomHTML=`<div style="display:flex;gap:8px">
-      <input id="gi" type="text" maxlength="4" value="${state.gInput}" placeholder="输入四位猜测" style="flex:1;letter-spacing:8px;font-size:20px;text-align:center;font-family:var(--font-mono)" />
-      <button id="gob" style="padding:0 20px;font-size:15px">猜！</button>
-    </div>`;
-  } else if(state.phase==='play'&&(state.turn==='a'||state.thinking)){
-    bottomHTML=`<div style="text-align:center;padding:10px 0;color:var(--color-text-secondary);font-size:14px">AI 正在分析，请稍候…</div>`;
-  } else if(state.phase==='over'){
-    const msg=state.winner==='p'
-      ?`你在第 ${pG} 次猜中了 AI 的密码 <strong class="mono">${state.aSecret}</strong>！AI 猜了你 ${aG} 次。`
-      :`AI 仅用 ${aG} 次就破解了你的密码！你猜了 ${pG} 次。`;
-    bottomHTML=`<div style="padding:14px 16px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);text-align:center">
-      <p style="font-size:14px;color:var(--color-text-secondary);margin-bottom:12px">${msg}</p>
-      <button id="again" style="padding:8px 24px">再来一局 ↗</button>
-    </div>`;
-  }
-
-  app.innerHTML=`
-<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-  <span style="font-size:18px;font-weight:500">💣 数字炸弹</span>
-  <span style="font-size:13px;padding:4px 14px;border-radius:20px;background:${sBg};color:${sClr}">${sTxt}</span>
-</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-  <div style="padding:12px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary)">
-    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">你的密码</div>
-    <div style="display:flex;gap:4px">${renderDigits(state.pSecret,false)}</div>
-  </div>
-  <div style="padding:12px 14px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary)">
-    <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">AI 的密码${state.phase==='over'?' (已揭晓)':''}</div>
-    <div style="display:flex;gap:4px">${renderDigits(aiDisp,aiMuted)}</div>
-    ${statsLine}
-  </div>
-</div>
-<div id="hist" style="height:252px;overflow-y:auto;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);padding:2px 12px;margin-bottom:12px">
-  ${renderHistory()}
-</div>
-${bottomHTML}`;
-
-  // Scroll history
-  const h=document.getElementById('hist');
-  if(h)h.scrollTop=h.scrollHeight;
-
-  // Bind events
-  const si=document.getElementById('gi');
-  if(si){
-    si.addEventListener('input',e=>{state.gInput=e.target.value.replace(/\D/g,'').slice(0,4);e.target.value=state.gInput;});
-    si.addEventListener('keydown',e=>{if(e.key==='Enter')submitP();});
-    si.focus();
-  }
-  const gob=document.getElementById('gob');
-  if(gob)gob.addEventListener('click',submitP);
-  const ag=document.getElementById('again');
-  if(ag)ag.addEventListener('click',()=>{state={...state,phase:'setup',gInput:'',sInput:''};render();});
 }
 
 render();
 </script>
+</body>
+</html>
